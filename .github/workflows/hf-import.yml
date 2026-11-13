@@ -1,0 +1,56 @@
+name: HF dataset file download
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo_id:
+        description: 'Dataset repo: owner/name'
+        required: true
+        type: string
+      filename:
+        description: 'Path inside dataset, e.g. test.parquet'
+        required: true
+        type: string
+      revision:
+        description: 'Branch, tag or commit'
+        default: main
+        required: true
+        type: string
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+
+jobs:
+  download:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'issues' &&
+       github.event.issue.user.login == github.repository_owner &&
+       startsWith(github.event.issue.title, '[HF-IMPORT]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      HF_REQUEST_JSON: ${{ github.event.issue.body }}
+      HF_INPUT_REPO_ID: ${{ inputs.repo_id }}
+      HF_INPUT_FILENAME: ${{ inputs.filename }}
+      HF_INPUT_REVISION: ${{ inputs.revision }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install download library
+        run: python -m pip install 'huggingface_hub>=0.34,<2'
+      - name: Run validation tests
+        run: python -m unittest discover -s tests -v
+      - name: Download and verify
+        run: python scripts/hf_import.py
+      - name: Save file as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hf-dataset-${{ github.run_id }}
+          path: hf-output/
+          retention-days: 7
+          if-no-files-found: error
