@@ -1,0 +1,38 @@
+name: HF dataset artifact cleanup
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_id:
+        description: 'Artifact ID to delete (only hf-dataset-* artifacts)'
+        required: true
+        type: string
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  cleanup:
+    if: >-
+      (github.event_name == 'workflow_dispatch') ||
+      (github.event_name == 'issues' &&
+       github.event.issue.user.login == github.repository_owner &&
+       startsWith(github.event.issue.title, '[HF-CLEAN]'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      HF_CLEAN_JSON: ${{ github.event.issue.body }}
+      HF_CLEAN_ARTIFACT_ID: ${{ inputs.artifact_id }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test cleanup validation
+        run: python -m unittest discover -s tests -v
+      - name: Delete verified importer artifact
+        run: python scripts/hf_cleanup.py
