@@ -1,0 +1,6 @@
+{
+  "repo_id": "cornell-movie-review-data/rotten_tomatoes",
+  "filename": "test.parquet",
+  "revision": "main",
+  "max_bytes": 10485760
+}
